@@ -11,7 +11,7 @@ import math
 import requests
 import json
 import hashlib
-from petoneerErrors import *
+#from petoneerErrors import *
 from pprint import pprint
 
 class Petoneer:
@@ -140,19 +140,18 @@ class Petoneer:
         if (resp.status_code == 200):
             json_resp = resp.json()
 
-            if 'data' in json_resp:
+            if ('data' in json_resp):
                 # Verify we have an auth token in the response - if so, store it
-                if (json_resp['data']['accessToken']):
+                if ('accessToken' in json_resp['data']):
                     self._auth_token = json_resp['data']['accessToken']
                     if (self.Debug):
                         print("Authentication successful - token ***" + self._auth_token[-4:])
                 else:
-                    raise ConnectionAbortedError('auth() failed - No API token value in response payload.\n{}'.format(resp.raw))
-                    raise ConnectionRefusedError("No API token value in response payload")
+                    raise ConnectionAbortedError('auth() failed - HTTP {}:  {}'.format(resp.status_code, json_resp['msg']))    
             else:
-                raise ConnectionAbortedError('auth() failed - server status code: {}\n'.format(resp.status_code, resp.raw))
+                raise ConnectionAbortedError('auth() failed - HTTP {}: {}'.format(resp.status_code, resp.raw))
         else:
-            raise ConnectionAbortedError('auth() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            raise ConnectionAbortedError('auth() failed - HTTP {}: {}'.format(resp.status_code, resp.raw))
 
     def get_registered_devices(self):
         if (self.Debug):
