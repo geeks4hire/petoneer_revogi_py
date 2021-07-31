@@ -22,4 +22,4 @@ __Usage:__
 ### Control LED's on fountain [inc dimmed or full intensity]
     pet.turn_leds_off("<<SERIAL_NO>>")
     pet.turn_leds_on("<<SERIAL_NO>>")
-    pet.turn_leds_on("<<SERIAL_NO>>", leds_dimmed = True)
+    pet.turn_leds_on("<<SERIAL_NO>>", leds_dimmed=True)
