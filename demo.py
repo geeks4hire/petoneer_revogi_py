@@ -19,7 +19,6 @@ print()
 print(" ....... ")
 print()
 
-fountain_index = 0
 for fountain in petoneer_devices:
     print('Fountain #' + str(fountain_index))
     pprint(fountain)
@@ -29,8 +28,6 @@ for fountain in petoneer_devices:
     pprint(fountain_status)
 
     print()
-
-    fountain_index += 1
 
 # Menu to demonstrate module features (against first Fountain registered with user account)
 while True:

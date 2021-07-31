@@ -11,6 +11,7 @@ import math
 import requests
 import json
 import hashlib
+from petoneerErrors import *
 from pprint import pprint
 
 class Petoneer:
@@ -97,6 +98,13 @@ class Petoneer:
         }
         return (level_labels.get(level_int, "Invalid Water Level Value!"))
     
+    def _pumpStatus(self, switch_int):
+        pump_statuses={
+            0: "Off",
+            1: "On"
+        }
+        return (pump_statuses.get(switch_int, "Invalid Pump Switch Value!"))
+
     def _tdsLevel(self, tds_level_int):
         if tds_level_int < 1:
             return "Invalid TDS Level Provided!"
@@ -129,16 +137,22 @@ class Petoneer:
         # we need to use for subsequent requests.
         #
         resp = self._req(self.API_LOGIN_PATH, auth_payload, auth=False)
-        json_resp = resp.json()
+        if (resp.status_code == 200):
+            json_resp = resp.json()
 
-        # Verify we have an auth token in the response - if so, store it
-        if (json_resp['data']['accessToken']):
-            self._auth_token = json_resp['data']['accessToken']
-            if (self.Debug):
-                print("Authentication successful - token ***" + self._auth_token[-4:])
+            if 'data' in json_resp:
+                # Verify we have an auth token in the response - if so, store it
+                if (json_resp['data']['accessToken']):
+                    self._auth_token = json_resp['data']['accessToken']
+                    if (self.Debug):
+                        print("Authentication successful - token ***" + self._auth_token[-4:])
+                else:
+                    raise ConnectionAbortedError('auth() failed - No API token value in response payload.\n{}'.format(resp.raw))
+                    raise ConnectionRefusedError("No API token value in response payload")
+            else:
+                raise ConnectionAbortedError('auth() failed - server status code: {}\n'.format(resp.status_code, resp.raw))
         else:
-            raise RuntimeError("No token value in response payload")
-
+            raise ConnectionAbortedError('auth() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
 
     def get_registered_devices(self):
         if (self.Debug):
@@ -148,12 +162,18 @@ class Petoneer:
           "protocol": "3"
         }
         resp = self._req(self.API_DEVICE_LIST_PATH, payload)
-        json_resp = resp.json()
+        if (resp.status_code == 200):
+            json_resp = resp.json()
 
-        devices =  json_resp['data']['dev']
+            if 'data' in json_resp:
+                devices =  json_resp['data']['dev']
+            else:
+                devices = None
 
-        # Return the list of devices
-        return devices
+            # Return the list of devices
+            return devices
+        else:
+            raise ConnectionAbortedError('get_registered_devices() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
 
     def get_device_details(self, device_code):
         if (self.Debug):
@@ -174,12 +194,13 @@ class Petoneer:
                     device_details['schedEnd'] = self._scheduleValueToDateTime(device_details['section'][1]).strftime('%H:%M:%S')
 
                 device_details['ledsStatus'] = self._ledStatus(device_details['led'], device_details['ledmode'])
+                device_details['pumpStatus'] = self._pumpStatus(device_details['switch'])
 
                 return device_details
-            else:                
-                return InterruptedError(json_resp['code'])
+            else:
+                raise ConnectionAbortedError('get_device_details() failed - server response: \n{}'.format(resp.raw))                
         else:
-            return ConnectionAbortedError(resp.status_code)
+            raise ConnectionAbortedError('get_device_details() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
 
     def turn_on(self, device_code):
         payload = { "sn": device_code, "protocol": "3", "switch": 1 }
@@ -190,7 +211,7 @@ class Petoneer:
             device_details = json_resp['data']
             return device_details
         else:
-            return ConnectionAbortedError(resp.status_code)
+            raise ConnectionAbortedError('turn_on() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
 
     def turn_off(self, device_code):
         payload = { "sn": device_code, "protocol": "3", "switch": 0 }
@@ -201,7 +222,7 @@ class Petoneer:
             device_details = json_resp['data']
             return device_details
         else:
-            return ConnectionAbortedError(resp.status_code)
+            raise ConnectionAbortedError('turn_off() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
 
     def turn_led_on(self, device_code, leds_dimmed = False):
         if (leds_dimmed): 
@@ -216,7 +237,7 @@ class Petoneer:
             device_details = json_resp['data']
             return device_details
         else:
-            return ConnectionAbortedError(resp.status_code)
+            raise ConnectionAbortedError('turn_led_off() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
 
     def turn_led_off(self, device_code):
         payload = { "sn": device_code, "ledmode": 0, "section": [0,1439], "protocol": "3", "led": "0" }
@@ -227,4 +248,4 @@ class Petoneer:
             device_details = json_resp['data']
             return device_details
         else:
-            return ConnectionAbortedError(resp.status_code)
+            raise ConnectionAbortedError('turn_led_off() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
