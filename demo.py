@@ -24,20 +24,11 @@ for fountain in petoneer_devices:
     fountain_status = petoneer_api.get_device_details(fountain["sn"])
     pprint(fountain_status)
 
-    fountain_local_datetime = dt.fromtimestamp(fountain_status['time'])
-    water_change_datetime = dt.fromtimestamp(fountain_status['watertime'])
-    filter_change_datetime = dt.fromtimestamp(fountain_status['filtertime'])
-    pump_clean_datetime = dt.fromtimestamp(fountain_status['motortime'])
-
-    #print('  Change Water in:    {} days'.format(water_change_days))
-    #print('  Change Filter in:   {} days'.format(filter_change_days))
-    #print('  Deep Clean Pump in: {} days'.format(pump_clean_days))     
-
     print()
 
     fountain_index += 1
 
-
+# Menu to demonstrate module features (against first Fountain registered with user account)
 while True:
     print()
     print("==========================================")
