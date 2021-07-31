@@ -62,7 +62,7 @@ while True:
 
     elif menu_input == "4":
         print("      *** TURNING ON LED's (Dimmed)...")
-        petoneer_api.turn_led_on(fountain_sn, True)
+        petoneer_api.turn_led_on(fountain_sn, leds_dimmed=True)
 
     elif menu_input == "5":
         print("      *** TURNING ON LED's (Full Intensity)...")
