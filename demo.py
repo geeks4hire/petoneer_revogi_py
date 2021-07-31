@@ -6,7 +6,7 @@ from pprint import pprint
 from datetime import datetime as dt
 
 from petoneer import *
-#from petoneerErrors import *
+from petoneerErrors import *
 
 from demo_settings import API_USERNAME, API_PASSWORD
 

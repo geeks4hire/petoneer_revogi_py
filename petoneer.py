@@ -11,7 +11,9 @@ import math
 import requests
 import json
 import hashlib
-#from petoneerErrors import *
+
+from petoneerErrors import *
+
 from pprint import pprint
 
 class Petoneer:
