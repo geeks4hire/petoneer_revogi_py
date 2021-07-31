@@ -1,15 +1,25 @@
 # petoneer_revogi_py
 
-Usage:
+__Usage:__
 
-pet = Petoneer();
+    pet = Petoneer();
 
-pet.auth("<<EMAIL>>", "<<PASSWORD>>")
+### Authenticate with Petoneer API
+    pet.auth("<<EMAIL>>", "<<PASSWORD>>")
 
-fountain = pet.get_device_details("<<SERIAL_NO>>")
+### Get device info and status for fountain (based on serial number)
+    fountain = pet.get_device_details("<<SERIAL_NO>>")
+    pprint(fountain)
 
-pprint(fountain)
+### Retrieve all registered Petoneer fountain devices linked with user account
+    devices = pet.get_registered_devices() 
+    pprint(devices)
 
-devices = pet.get_registered_devices()
+### Switch on/off water pump (based on fountain serial number)
+    pet.turn_off("<<SERIAL_NO>>")
+    pet.turn_on("<<SERIAL_NO>>")
 
-pprint(devices)
+### Control LED's on fountain [inc dimmed or full intensity]
+    pet.turn_leds_off("<<SERIAL_NO>>")
+    pet.turn_leds_on("<<SERIAL_NO>>")
+    pet.turn_leds_on("<<SERIAL_NO>>", leds_dimmed = True)
