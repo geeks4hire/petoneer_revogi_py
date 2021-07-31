@@ -82,13 +82,23 @@ class Petoneer:
         else:
             return time(0,0,0)            
 
-    def _ledStatus(self, led_value: int, ledmode_value: int):
-        if (led_value == 0):
-            return "Off"
-        if ((led_value == 1) and (ledmode_value == 10)):
-            return "Dimmed"
+    def _ledStatus(self, led_value: int, ledmode_value: int, schedule_value1: int = 0, schedule_value2: int = 0):
+        if (schedule_value2 != schedule_value1) and (schedule_value1 >=0) and (schedule_value1 <= 1439) and (schedule_value2 >= 0) and (schedule_value2 <= 1439):
+            sched_start = self._scheduleValueToDateTime(schedule_value1)
+            sched_end = self._scheduleValueToDateTime(schedule_value2)
+            current_time = datetime.now().time()
+            
+            if ((sched_start < current_time) and (sched_end > current_time)):
+                ledIntensity = "Dimmed"
+            else:
+                ledIntensity = "On"
         else:
-            return "On"
+            ledIntensity = "On"
+
+        if ((led_value == 1) or (ledmode_value == 10)):
+            return ledIntensity
+        else:
+            return "Off"
 
     def _waterLevel(self, level_int):
         level_labels={
@@ -194,7 +204,7 @@ class Petoneer:
                     device_details['schedStart'] = self._scheduleValueToDateTime(device_details['section'][0]).strftime('%H:%M:%S')
                     device_details['schedEnd'] = self._scheduleValueToDateTime(device_details['section'][1]).strftime('%H:%M:%S')
 
-                device_details['ledsStatus'] = self._ledStatus(device_details['led'], device_details['ledmode'])
+                device_details['ledsStatus'] = self._ledStatus(device_details['led'], device_details['ledmode'], device_details['section'][0], device_details['section'][1])
                 device_details['pumpStatus'] = self._pumpStatus(device_details['switch'])
 
                 return device_details
