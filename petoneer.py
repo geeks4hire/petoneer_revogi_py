@@ -3,8 +3,10 @@ Python module to get device details from Petoneer / Revogi equipment
 Tested with a Petoneer Fresco Pro water fountain
 """
 
+from datetime import time, date, datetime
 import logging
 import urllib.parse
+import math
 
 import requests
 import json
@@ -22,6 +24,8 @@ class Petoneer:
     API_DEVICE_LIST_PATH    = "/user/500"
     API_DEVICE_DETAILS_PATH = "/pww/31101"
     API_DEVICE_SWITCH_PATH  = "/pww/21101"
+    API_DEVICE_LED_PATH     = "/pww/21104"
+    
     Debug                   = 1 
 
     def __init__(self):
@@ -32,11 +36,10 @@ class Petoneer:
             print("")
 
     def _debug(self, msg):
-        #print(msg)
-        pass
+        print(msg)
+        #pass
 
-    def _url(self, path):
-        return self.API_URL + path
+        return
 
     def _req(self, path, payload, auth=True):
         if (auth):
@@ -47,6 +50,62 @@ class Petoneer:
         # Make the request
         resp = requests.post(self._url(path), json=payload, headers=headers)
         return resp
+
+    def _url(self, path):        
+        return self.API_URL + path
+
+    def _numOfDays(self, date1_unix_timestamp: int, date2_unix_timestamp: int):
+        date1 = datetime.fromtimestamp(date1_unix_timestamp)
+        date2 = datetime.fromtimestamp(date2_unix_timestamp)
+
+        seconds_difference = (date2 - date1).total_seconds()
+        hours_difference = int((date2 - date1).seconds / 60)
+
+        return seconds_difference
+
+    def _dateTimeToScheduleValue(self, schedule_time: datetime):
+        schedule_value = (schedule_time.hour * 60) + schedule_time.min
+        return schedule_value
+
+    def _scheduleValueToDateTime(self, schedule_time_str):
+        if (schedule_time_str == 0):
+            return time(0,0,0)
+
+        hours = math.floor(int(schedule_time_str) / 60)
+        mins =  int(schedule_time_str - (hours * 60))
+
+        if (hours <= 23) and (hours >= 0) and (mins <=59) and (mins >= 0):
+            return time(hours, mins, 0)
+        else:
+            return time(0,0,0)            
+
+    def _ledStatus(self, led_value: int, ledmode_value: int):
+        if (led_value == 0):
+            return "Off"
+        if ((led_value == 1) and (ledmode_value == 10)):
+            return "Dimmed"
+        else:
+            return "On"
+
+    def _waterLevel(self, level_int):
+        level_labels={
+            0: "0% - Empty",
+            1: "25% - Low",
+            2: "50% - Adequate",
+            3: "75% - Good",
+            4: "100% - Full"
+        }
+        return (level_labels.get(level_int, "Invalid Water Level Value!"))
+    
+    def _tdsLevel(self, tds_level_int):
+        if tds_level_int < 1:
+            return "Invalid TDS Level Provided!"
+        elif tds_level_int < 50:
+            return "Excellent"
+        elif tds_level_int < 100:
+            return "Drinkable"
+        else:
+            return "Undrinkable"
 
     def auth(self, username, password):
         # Build the authentication request payload
@@ -101,23 +160,71 @@ class Petoneer:
             print("Getting details for device " + device_code)
         payload = { "sn": device_code, "protocol": "3" }
         resp = self._req(self.API_DEVICE_DETAILS_PATH, payload)
-        json_resp = resp.json()
+        if(resp.status_code == 200):
+            json_resp = resp.json()
 
-        device_details = json_resp['data']
-        return device_details
+            if (json_resp['code'] == 200):
+                device_details = json_resp['data']
+                device_details['waterLevel'] = self._waterLevel(device_details['level'])
+                device_details['waterQuality'] = self._tdsLevel(device_details['tds'])
+                #device_details['waterFilterDays'] = self._numOfDays(device_details['time'], device_details['filtertime'])
+    
+                if 'section' in device_details:
+                    device_details['schedStart'] = self._scheduleValueToDateTime(device_details['section'][0]).strftime('%H:%M:%S')
+                    device_details['schedEnd'] = self._scheduleValueToDateTime(device_details['section'][1]).strftime('%H:%M:%S')
+
+                device_details['ledsStatus'] = self._ledStatus(device_details['led'], device_details['ledmode'])
+
+                return device_details
+            else:                
+                return InterruptedError(json_resp['code'])
+        else:
+            return ConnectionAbortedError(resp.status_code)
 
     def turn_on(self, device_code):
         payload = { "sn": device_code, "protocol": "3", "switch": 1 }
         resp = self._req(self.API_DEVICE_SWITCH_PATH, payload)
-        json_resp = resp.json()
+        if (resp.status_code == 200):
+            json_resp = resp.json()
 
-        device_details = json_resp['data']
-        return device_details
+            device_details = json_resp['data']
+            return device_details
+        else:
+            return ConnectionAbortedError(resp.status_code)
 
     def turn_off(self, device_code):
         payload = { "sn": device_code, "protocol": "3", "switch": 0 }
         resp = self._req(self.API_DEVICE_SWITCH_PATH, payload)
-        json_resp = resp.json()
+        if (resp.status_code == 200):
+            json_resp = resp.json()
 
-        device_details = json_resp['data']
-        return device_details
+            device_details = json_resp['data']
+            return device_details
+        else:
+            return ConnectionAbortedError(resp.status_code)
+
+    def turn_led_on(self, device_code, leds_dimmed = False):
+        if (leds_dimmed): 
+            payload = { "sn": device_code, "protocol": "3", "ledmode": 1, "section": [0, 1439], "led": 1 }
+        else:
+            payload = { "sn": device_code, "protocol": "3", "ledmode": 1, "section": [0, 0], "led": 1 }
+        
+        resp = self._req(self.API_DEVICE_LED_PATH, payload)
+        if (resp.status_code == 200):
+            json_resp = resp.json()
+
+            device_details = json_resp['data']
+            return device_details
+        else:
+            return ConnectionAbortedError(resp.status_code)
+
+    def turn_led_off(self, device_code):
+        payload = { "sn": device_code, "ledmode": 0, "section": [0,1439], "protocol": "3", "led": "0" }
+        resp = self._req(self.API_DEVICE_LED_PATH, payload)
+        if (resp.status_code == 200):
+            json_resp = resp.json()
+
+            device_details = json_resp['data']
+            return device_details
+        else:
+            return ConnectionAbortedError(resp.status_code)
