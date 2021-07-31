@@ -8,11 +8,11 @@ from datetime import datetime as dt
 from petoneer import *
 from petoneerErrors import *
 
-from demo_settings import API_USERNAME, API_PASSWORD
+from demo_settings import API_USERNAME, API_PASSWORD, API_COUNTRY, API_TIMEZONE
 
 petoneer_api = Petoneer()
 
-auth_result = petoneer_api.auth(API_USERNAME, API_PASSWORD)
+auth_result = petoneer_api.auth(API_USERNAME, API_PASSWORD, API_COUNTRY, API_TIMEZONE)
 
 petoneer_devices = petoneer_api.get_registered_devices()
 

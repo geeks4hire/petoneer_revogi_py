@@ -118,23 +118,35 @@ class Petoneer:
         return (pump_statuses.get(switch_int, "Invalid Pump Switch Value!"))
 
     def _tdsLevel(self, tds_level_int):
-        if tds_level_int < 1:
+        if (tds_level_int < 1):
             return "Invalid TDS Level Provided!"
-        elif tds_level_int < 50:
+        elif (tds_level_int <= 50):
             return "Excellent"
-        elif tds_level_int < 100:
+        elif (tds_level_int <= 100):
             return "Drinkable"
         else:
             return "Undrinkable"
 
-    def auth(self, username, password):
+    def auth(self, username, password, country="AU", timezone="Australia/Sydney"):
+        if (username == ""):           
+            raise PetoneerInvalidArgument("auth", "username", "Username cannot be blank")
+
+        if (password == ""):
+            raise PetoneerInvalidArgument("auth", "password", "Password cannot be blank")
+
+        if (country == ""):
+            raise PetoneerInvalidArgument("auth", "country", "Country code cannot be blank")
+
+        if (timezone == ""):
+            raise PetoneerInvalidArgument("auth", "timezone", "Timezone cannot be blank")
+            
         # Build the authentication request payload
         auth_payload = {
           "language": "0",
           "type": 2,
           "region": {
-            "country": "AU",
-            "timezone": "Australia/Sydney"
+            "country": country,
+            "timezone": timezone
           },
           "username": username,
           "password": password
@@ -148,9 +160,13 @@ class Petoneer:
         # response back which will include our authentication token that
         # we need to use for subsequent requests.
         #
-        resp = self._req(self.API_LOGIN_PATH, auth_payload, auth=False)
+        try: 
+            resp = self._req(self.API_LOGIN_PATH, auth_payload, auth=False)
+        except Exception as e:
+            raise PetoneerServerError(501, (self.API_URL + self.API_LOGIN_PATH), e.__context__, "Unable to authenticate with Petoneer API - Connection refused / timed out")
+
         if (resp.status_code == 200):
-            json_resp = resp.json()
+            json_resp = resp.json()            
 
             if ('data' in json_resp):
                 # Verify we have an auth token in the response - if so, store it
@@ -159,11 +175,11 @@ class Petoneer:
                     if (self.Debug):
                         print("Authentication successful - token ***" + self._auth_token[-4:])
                 else:
-                    raise ConnectionAbortedError('auth() failed - HTTP {}:  {}'.format(resp.status_code, json_resp['msg']))    
+                    raise PetoneerAuthenticationError(resp.status_code, username, resp.text, "Unable to authenticate with Petoneer API - incorerct username or password?")
             else:
-                raise ConnectionAbortedError('auth() failed - HTTP {}: {}'.format(resp.status_code, resp.raw))
+                raise PetoneerServerError(resp.status_code, self.API_URL, resp.text, "Error from Server while authenticating user - corrupt response")
         else:
-            raise ConnectionAbortedError('auth() failed - HTTP {}: {}'.format(resp.status_code, resp.raw))
+            raise PetoneerServerError(resp.status_code, self.API_URL, resp.text, "Error from Server while authenticating user - unknown error")
 
     def get_registered_devices(self):
         if (self.Debug):
@@ -184,7 +200,9 @@ class Petoneer:
             # Return the list of devices
             return devices
         else:
-            raise ConnectionAbortedError('get_registered_devices() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            pass
+            #raise PetoneerServerError(resp.status_code, self.API_URL, "Error from Server while requesting Fountain device(s) list")
+            #raise ConnectionAbortedError('get_registered_devices() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
 
     def get_device_details(self, device_code):
         if (self.Debug):
@@ -209,9 +227,13 @@ class Petoneer:
 
                 return device_details
             else:
-                raise ConnectionAbortedError('get_device_details() failed - server response: \n{}'.format(resp.raw))                
+                pass
+                #raise PetoneerInvalidServerResponse(resp.http_code, self.API_URL, json_resp)
+                #raise ConnectionAbortedError('get_device_details() failed - server response: \n{}'.format(resp.raw))                
         else:
-            raise ConnectionAbortedError('get_device_details() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            pass
+            #raise PetoneerServerError(resp.status_code, self.API_URL, "Error from Server while requesting Fountain device info")
+            #raise ConnectionAbortedError('get_device_details() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
 
     def turn_on(self, device_code):
         payload = { "sn": device_code, "protocol": "3", "switch": 1 }

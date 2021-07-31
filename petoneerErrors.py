@@ -5,37 +5,39 @@ class PetoneerAuthenticationError(Exception):
     Attributes:
         http_code -- http code returned from HTTP request (eg: 200, 401, 500)
         username -- username used for authentication (optional)
-        api_token -- api_token obtained from server (optional)
+        server_response_text -- server HTTP(s) response body [in raw text] (optional)
         message -- explanation of the error (optional)
     """
 
-    def __init__(self, http_code, username="", api_token="", message="Authentication Error connecting to Petoneer API Server"):
+    def __init__(self, http_code, username="", server_response_text="", message="Authentication Error connecting to Petoneer API Server"):
         self.http_code = http_code
         self.username = username
-        self.api_token = api_token
+        self.server_response_text = server_response_text
         self.message = message
         super().__init__(self.message)
 
     def __str__(self):
-        return f'HTTP {self.http_code} -> {self.message}\n   usermame = "{self.username}", api_token = "{self.api_token}"'
+        return f'HTTP {self.http_code} -> Authentication Error: {self.message}\n -> usermame = "{self.username}"\n{self.server_response_text}'
 
 class PetoneerServerError(Exception):
     """Exception raised for server errors produced from to the Petoneer API.
 
     Attributes:
         http_code -- http code returned from HTTP request (eg: 200, 401, 500)
-        api_server -- hostname of API server (optional)
+        api_url -- requested URL of API server (optional)
+        server_response_text -- server HTTP(s) response body [in raw text] (optional)
         message -- explanation of the error (optional)
     """
 
-    def __init__(self, http_code, api_server = "SERVER", message="Server Error"):
+    def __init__(self, http_code, api_url = "SERVER", server_response_text = "", message="Server Error"):
         self.http_code = http_code
-        self.api_server = api_server
+        self.url = api_url
+        self.server_response_text = server_response_text
         self.message = message
         super().__init__(self.message)
 
     def __str__(self):
-        return f'HTTP {self.http_code} -> Error returned from API Server "{self.api_server}: {self.message}'
+        return f'HTTP {self.http_code} -> Error returned from API Server "{self.url}: {self.message}\n{self.server_response_text}'
 
 class PetoneerInvalidArgument(Exception):
 
@@ -61,20 +63,20 @@ class PetoneerInvalidServerResponse(Exception):
 
     Attributes:
         http_code -- http code returned from HTTP request (eg: 200, 401, 500)
-        api_server -- hostname of API server (optional)
-        json_contents -- json data returned from server (optional)
+        api_url -- requested URL of API server (optional)
+        server_response_text -- server HTTP(s) response body [in raw text] (optional)
         message -- explanation of the error (optional)
     """
 
-    def __init__(self, http_code, api_server="SERVER", json_contents="", message="Invalid / incomplete response received from API server"):
+    def __init__(self, http_code, api_url = "SERVER", server_response_text = "", message = "Invalid / incomplete response received from API server"):
         self.http_code = http_code
-        self.api_server = api_server
-        self.json_contents = json_contents
+        self.url = api_url
+        self.server_response_text = server_response_text
         self.message = message
         super().__init__(self.message)
 
     def __str__(self):
-        return f'HTTP {self.http_code} -> Invalid response received from API server "{self.api_server}": {self.message}\n\n{self.json_contents}'    
+        return f'HTTP {self.http_code} -> Invalid response received from API server "{self.url}": {self.message}\n{self.server_response_text}'    
 
 class PetoneerFountainDeviceOffline(Exception):
     """Exception raised for invalid arguments / values provided to the Petoneer API module.
