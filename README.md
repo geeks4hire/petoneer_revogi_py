@@ -7,15 +7,15 @@ __Usage:__
 ### Authenticate with Petoneer API
     pet.auth("<<EMAIL>>", "<<PASSWORD>>")
 
-### Get device info and status for fountain (based on serial number)
+### Obtain list of Petoneer fountains linked with user account
+    devices = pet.get_registered_devices()
+    pprint(devices)
+
+### Obtain device info and status [based on device serial number]
     fountain = pet.get_device_details("<<SERIAL_NO>>")
     pprint(fountain)
 
-### Retrieve all registered Petoneer fountain devices linked with user account
-    devices = pet.get_registered_devices() 
-    pprint(devices)
-
-### Switch on/off water pump (based on fountain serial number)
+### Switch on/off fountain pump [based on device serial number]
     pet.turn_off("<<SERIAL_NO>>")
     pet.turn_on("<<SERIAL_NO>>")
 
