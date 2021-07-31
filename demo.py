@@ -15,6 +15,10 @@ auth_result = petoneer_api.auth(API_USERNAME, API_PASSWORD)
 
 petoneer_devices = petoneer_api.get_registered_devices()
 
+print()
+print(" ....... ")
+print()
+
 fountain_index = 0
 for fountain in petoneer_devices:
     print('Fountain #' + str(fountain_index))
@@ -56,7 +60,7 @@ while True:
 
     elif menu_input == "4":
         print("      *** TURNING ON LED's (Dimmed)...")
-        petoneer_api.turn_led_on(fountain_sn, True)
+        petoneer_api.turn_led_on(fountain_sn, leds_dimmed=True)
 
     elif menu_input == "5":
         print("      *** TURNING ON LED's (Full Intensity)...")
@@ -71,11 +75,6 @@ while True:
     
     fountain_status = petoneer_api.get_device_details(fountain_sn)
     pprint(fountain_status)
+
     print()
-
- 
- 
-
-
-
 
