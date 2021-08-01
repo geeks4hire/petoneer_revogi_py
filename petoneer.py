@@ -28,6 +28,9 @@ class Petoneer:
     API_DEVICE_DETAILS_PATH         = "/pww/31101"
     API_DEVICE_SWITCH_PATH          = "/pww/21101"
     API_DEVICE_LED_PATH             = "/pww/21104"
+    API_RESET_CLEAN_PUMP_TIMER      = "/pww/21103"
+    API_RESET_FILTER_CHANGE_TIMER    = "/pww/21105"
+    API_RESET_WATER_CHANGE_TIMER    = "/pww/21107"
 
     SECONDS_FOUNTAIN_WATER_CHANGE   = 5 * 24 * 60 * 60
     SECONDS_FOUNTAIN_FILTER_CHANGE  = 30 * 24 * 60 * 60
@@ -375,3 +378,60 @@ class Petoneer:
             return device_details
         else:
             raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to switch off Petoneer Fountain LEDs - Server Error')
+
+    def reset_filter_change_timer(self, device_code):
+        if (device_code == ""):
+            raise PetoneerInvalidArgument('reset_filter_change_timer', 'device_code', 'The device serial number must be provided') 
+
+        payload = {         
+            "sn": device_code, 
+            "protocol": "3"
+        }
+
+        resp = self._req(self.API_RESET_FILTER_CHANGE_TIMER, payload)
+
+        if (resp.status_code == 200):
+            json_resp = resp.json()
+
+            device_details = json_resp['data']
+            return device_details
+        else:
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to reset the "filter change" countdown timer on Petoneer Fountain - Server Error')
+
+    def reset_water_change_timer(self, device_code):
+        if (device_code == ""):
+            raise PetoneerInvalidArgument('reset_water_change_timer', 'device_code', 'The device serial number must be provided') 
+
+        payload = {         
+            "sn": device_code, 
+            "protocol": "3"
+        }
+
+        resp = self._req(self.API_RESET_WATER_CHANGE_TIMER, payload)
+
+        if (resp.status_code == 200):
+            json_resp = resp.json()
+
+            device_details = json_resp['data']
+            return device_details
+        else:
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to reset the "water changeover" countdown timer on Petoneer Fountain - Server Error')
+
+    def reset_clean_pump_timer(self, device_code):
+        if (device_code == ""):
+            raise PetoneerInvalidArgument('reset_clean_pump_timer', 'device_code', 'The device serial number must be provided') 
+
+        payload = {         
+            "sn": device_code, 
+            "protocol": "3"
+        }
+
+        resp = self._req(self.API_RESET_CLEAN_PUMP_TIMER, payload)
+
+        if (resp.status_code == 200):
+            json_resp = resp.json()
+
+            device_details = json_resp['data']
+            return device_details
+        else:
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to reset the "pump clean" countdown timer on Petoneer Fountain - Server Error')
