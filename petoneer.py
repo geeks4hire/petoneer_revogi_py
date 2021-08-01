@@ -21,15 +21,19 @@ class Petoneer:
     Class to interface with the cloud-based API for the Revogi Smart Home equipment
     """
 
-    API_URL                 = "https://as.revogi.net/app"
+    API_URL                         = "https://as.revogi.net/app"
 
-    API_LOGIN_PATH          = "/user/101"
-    API_DEVICE_LIST_PATH    = "/user/500"
-    API_DEVICE_DETAILS_PATH = "/pww/31101"
-    API_DEVICE_SWITCH_PATH  = "/pww/21101"
-    API_DEVICE_LED_PATH     = "/pww/21104"
+    API_LOGIN_PATH                  = "/user/101"
+    API_DEVICE_LIST_PATH            = "/user/500"
+    API_DEVICE_DETAILS_PATH         = "/pww/31101"
+    API_DEVICE_SWITCH_PATH          = "/pww/21101"
+    API_DEVICE_LED_PATH             = "/pww/21104"
+
+    SECONDS_FOUNTAIN_WATER_CHANGE   = 5 * 24 * 60 * 60
+    SECONDS_FOUNTAIN_FILTER_CHANGE  = 30 * 24 * 60 * 60
+    SECONDS_FOUNTAIN_CLEAN_PUMP     = 60 * 24 * 60 * 60 
     
-    Debug                   = 1 
+    Debug                           = 1 
 
     def __init__(self):
         # Nothing to do here
@@ -46,25 +50,41 @@ class Petoneer:
 
     def _req(self, path, payload, auth=True):
         if (auth):
-            headers = { "accessToken": self._auth_token }
+            headers = { 
+                "accessToken": self._auth_token 
+            }
         else:
             headers = {}
 
         # Make the request
-        resp = requests.post(self._url(path), json=payload, headers=headers)
-        return resp
+        try:
+            resp = requests.post(self._url(path), json=payload, headers=headers)
+            return resp
+
+        except Exception as e:
+            raise PetoneerApiServerOffline(self._url(path), 501, 'Unable to connect to Petoneer API server - Connection Failed')
+            #raise PetoneerServerError(501, self._url(path), e.__cause__, 'Unable to connect to Petoneer API server - Connection Failed')
 
     def _url(self, path):        
         return self.API_URL + path
 
-    def _numOfDays(self, date1_unix_timestamp: int, date2_unix_timestamp: int):
-        date1 = datetime.fromtimestamp(date1_unix_timestamp)
-        date2 = datetime.fromtimestamp(date2_unix_timestamp)
+    def _numOfDaysRemaining(self, device_current_time_unix_timestamp: int, device_feature_unix_timestamp: int, threshold_interval_secs):
+        date1 = datetime.fromtimestamp(device_feature_unix_timestamp)
+        date2 = datetime.fromtimestamp(device_current_time_unix_timestamp)
 
         seconds_difference = (date2 - date1).total_seconds()
-        hours_difference = int((date2 - date1).seconds / 60)
+        days_remaining = math.ceil((threshold_interval_secs - seconds_difference)/60/60/24)
 
-        return seconds_difference
+        return days_remaining
+
+    def _percentageRemaining(self, device_current_time_unix_timestamp: int, device_feature_unix_timestamp: int, threshold_interval_secs):
+        date1 = datetime.fromtimestamp(device_feature_unix_timestamp)
+        date2 = datetime.fromtimestamp(device_current_time_unix_timestamp)
+
+        seconds_difference = (date2 - date1).total_seconds()
+        percent_remaining = round(((threshold_interval_secs - seconds_difference) / threshold_interval_secs) * 100)
+
+        return percent_remaining
 
     def _dateTimeToScheduleValue(self, schedule_time: datetime):
         schedule_value = (schedule_time.hour * 60) + schedule_time.min
@@ -102,20 +122,30 @@ class Petoneer:
 
     def _waterLevel(self, level_int):
         level_labels={
-            0: "0% - Empty",
-            1: "25% - Low",
-            2: "50% - Adequate",
-            3: "75% - Good",
-            4: "100% - Full"
+            0: "Empty",
+            1: "Low",
+            2: "Adequate",
+            3: "Good",
+            4: "Full"
         }
-        return (level_labels.get(level_int, "Invalid Water Level Value!"))
-    
+        return (level_labels.get(level_int, 'Invalid Water Level Value!'))
+
+    def _waterPercentage(self, level_int):
+        percent_labels={
+            0: "0%",
+            1: "25%",
+            2: "50%",
+            3: "75%",
+            4: "100%"
+        }
+        return (percent_labels.get(level_int, 'Invalid Water Level Value!'))
+
     def _pumpStatus(self, switch_int):
         pump_statuses={
             0: "Off",
             1: "On"
         }
-        return (pump_statuses.get(switch_int, "Invalid Pump Switch Value!"))
+        return (pump_statuses.get(switch_int, 'Invalid Pump Switch Value!'))
 
     def _tdsLevel(self, tds_level_int):
         if (tds_level_int < 1):
@@ -129,17 +159,17 @@ class Petoneer:
 
     def auth(self, username, password, country="AU", timezone="Australia/Sydney"):
         if (username == ""):           
-            raise PetoneerInvalidArgument("auth", "username", "Username cannot be blank")
+            raise PetoneerInvalidArgument('auth', 'username', 'Username cannot be blank')
 
         if (password == ""):
-            raise PetoneerInvalidArgument("auth", "password", "Password cannot be blank")
+            raise PetoneerInvalidArgument('auth', 'password', 'Password cannot be blank')
 
         if (country == ""):
-            raise PetoneerInvalidArgument("auth", "country", "Country code cannot be blank")
+            raise PetoneerInvalidArgument('auth', 'country', 'Country code cannot be blank')
 
         if (timezone == ""):
-            raise PetoneerInvalidArgument("auth", "timezone", "Timezone cannot be blank")
-            
+            raise PetoneerInvalidArgument('auth', 'timezone', 'Timezone cannot be blank')
+
         # Build the authentication request payload
         auth_payload = {
           "language": "0",
@@ -153,17 +183,14 @@ class Petoneer:
         }
         
         if (self.Debug):
-            print("Authenticating to " + self.API_URL + " as " + username + "...")
+            print(f"Authenticating to {self.API_URL} as {username}...")
 
         #
         # Attempt to authenticate - if successful, we will get an HTTP 200
         # response back which will include our authentication token that
         # we need to use for subsequent requests.
-        #
-        try: 
-            resp = self._req(self.API_LOGIN_PATH, auth_payload, auth=False)
-        except Exception as e:
-            raise PetoneerServerError(501, (self.API_URL + self.API_LOGIN_PATH), e.__context__, "Unable to authenticate with Petoneer API - Connection refused / timed out")
+        # 
+        resp = self._req(self.API_LOGIN_PATH, auth_payload, auth=False)
 
         if (resp.status_code == 200):
             json_resp = resp.json()            
@@ -175,11 +202,11 @@ class Petoneer:
                     if (self.Debug):
                         print("Authentication successful - token ***" + self._auth_token[-4:])
                 else:
-                    raise PetoneerAuthenticationError(resp.status_code, username, resp.text, "Unable to authenticate with Petoneer API - incorerct username or password?")
+                    raise PetoneerAuthenticationError(resp.status_code, username, resp.text, 'Unable to authenticate with Petoneer API - Incorrect username or password?')
             else:
-                raise PetoneerServerError(resp.status_code, self.API_URL, resp.text, "Error from Server while authenticating user - corrupt response")
+                raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Error from Server while authenticating user - Unexpected server response')
         else:
-            raise PetoneerServerError(resp.status_code, self.API_URL, resp.text, "Error from Server while authenticating user - unknown error")
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Error from Server while authenticating user - Unknown Error')
 
     def get_registered_devices(self):
         if (self.Debug):
@@ -188,7 +215,9 @@ class Petoneer:
           "dev": "all",
           "protocol": "3"
         }
+        
         resp = self._req(self.API_DEVICE_LIST_PATH, payload)
+
         if (resp.status_code == 200):
             json_resp = resp.json()
 
@@ -200,85 +229,149 @@ class Petoneer:
             # Return the list of devices
             return devices
         else:
-            pass
-            #raise PetoneerServerError(resp.status_code, self.API_URL, "Error from Server while requesting Fountain device(s) list")
-            #raise ConnectionAbortedError('get_registered_devices() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to obtain list of Petoneer Fountain devices - Server Error')
 
     def get_device_details(self, device_code):
+        if (device_code == ""):
+            raise PetoneerInvalidArgument('get_device_details', 'device_code', 'The device serial number must be provided')
+
         if (self.Debug):
-            print("Getting details for device " + device_code)
-        payload = { "sn": device_code, "protocol": "3" }
+            print(f"Getting details for device {device_code}")
+
+        payload = { 
+            "sn": device_code, 
+            "protocol": "3" 
+        }
+
         resp = self._req(self.API_DEVICE_DETAILS_PATH, payload)
+
         if(resp.status_code == 200):
             json_resp = resp.json()
 
             if (json_resp['code'] == 200):
                 device_details = json_resp['data']
-                device_details['waterLevel'] = self._waterLevel(device_details['level'])
+                device_details['waterLevel'] = [
+                    f"{self._waterPercentage(device_details['level'])}",
+                    f"{self._waterLevel(device_details['level'])}"
+                ]
                 device_details['waterQuality'] = self._tdsLevel(device_details['tds'])
-                #device_details['waterFilterDays'] = self._numOfDays(device_details['time'], device_details['filtertime'])
-    
+                device_details['changeFilter'] = [
+                    f"{self._numOfDaysRemaining(device_details['time'], device_details['filtertime'], self.SECONDS_FOUNTAIN_FILTER_CHANGE)} days",
+                    f"{self._percentageRemaining(device_details['time'], device_details['filtertime'], self.SECONDS_FOUNTAIN_FILTER_CHANGE)} %"
+                ]
+                device_details['changeWater'] = [
+                    f"{self._numOfDaysRemaining(device_details['time'], device_details['watertime'], self.SECONDS_FOUNTAIN_WATER_CHANGE)} days",
+                    f"{self._percentageRemaining(device_details['time'], device_details['watertime'], self.SECONDS_FOUNTAIN_WATER_CHANGE)} %"
+                ]
+                device_details['cleanPump'] = [ 
+                    f"{self._numOfDaysRemaining(device_details['time'], device_details['motortime'], self.SECONDS_FOUNTAIN_CLEAN_PUMP)} days",
+                    f"{self._percentageRemaining(device_details['time'], device_details['motortime'], self.SECONDS_FOUNTAIN_CLEAN_PUMP)} %"
+                ]
                 if 'section' in device_details:
-                    device_details['schedStart'] = self._scheduleValueToDateTime(device_details['section'][0]).strftime('%H:%M:%S')
-                    device_details['schedEnd'] = self._scheduleValueToDateTime(device_details['section'][1]).strftime('%H:%M:%S')
-
+                    device_details['ledsDimmingSchedule'] = [
+                        self._scheduleValueToDateTime(device_details['section'][0]).strftime('%H:%M:%S'),
+                        self._scheduleValueToDateTime(device_details['section'][1]).strftime('%H:%M:%S')
+                    ]
                 device_details['ledsStatus'] = self._ledStatus(device_details['led'], device_details['ledmode'], device_details['section'][0], device_details['section'][1])
                 device_details['pumpStatus'] = self._pumpStatus(device_details['switch'])
 
                 return device_details
             else:
-                pass
-                #raise PetoneerInvalidServerResponse(resp.http_code, self.API_URL, json_resp)
-                #raise ConnectionAbortedError('get_device_details() failed - server response: \n{}'.format(resp.raw))                
+                raise PetoneerInvalidServerResponse(resp.http_code, resp.url, resp.text, 'Unable to obtain Petoneer Fountain device details - Unexpected Server Response')
         else:
-            pass
-            #raise PetoneerServerError(resp.status_code, self.API_URL, "Error from Server while requesting Fountain device info")
-            #raise ConnectionAbortedError('get_device_details() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to obtain Petoneer Fountain device details - Server Error')
 
     def turn_on(self, device_code):
-        payload = { "sn": device_code, "protocol": "3", "switch": 1 }
+        if (device_code == ""):
+            raise PetoneerInvalidArgument('turn_on', 'device_code', 'The device serial number must be provided')
+
+        payload = { 
+            "sn": device_code, 
+            "protocol": "3", 
+            "switch": 1 
+        }
+
         resp = self._req(self.API_DEVICE_SWITCH_PATH, payload)
-        if (resp.status_code == 200):
+
+        if (resp.status_code == 200): 
             json_resp = resp.json()
 
             device_details = json_resp['data']
             return device_details
         else:
-            raise ConnectionAbortedError('turn_on() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to switch on Petoneer Fountain - Server Error')
 
     def turn_off(self, device_code):
-        payload = { "sn": device_code, "protocol": "3", "switch": 0 }
+        if (device_code == ""):
+            raise PetoneerInvalidArgument('turn_off', 'device_code', 'The device serial number must be provided')
+
+        payload = {
+            "sn": device_code, 
+            "protocol": "3", 
+            "switch": 0 
+        }
+
         resp = self._req(self.API_DEVICE_SWITCH_PATH, payload)
+
         if (resp.status_code == 200):
             json_resp = resp.json()
 
             device_details = json_resp['data']
             return device_details
         else:
-            raise ConnectionAbortedError('turn_off() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to switch off Petoneer Fountain - Server Error')
 
     def turn_led_on(self, device_code, leds_dimmed = False):
-        if (leds_dimmed): 
-            payload = { "sn": device_code, "protocol": "3", "ledmode": 1, "section": [0, 1439], "led": 1 }
+        if (device_code == ""):
+            raise PetoneerInvalidArgument('turn_led_on', 'device_code', 'The device serial number must be provided')
+
+        if (leds_dimmed):
+            # create payload with LED dimming schedule that spans from 00:00 to 23:59hrs
+            payload = { 
+                "sn": device_code, 
+                "protocol": "3", 
+                "ledmode": 1, 
+                "section": [0, 1439], 
+                "led": 1 
+            }
+            # create a payload with no scheduled times for LED dimming
         else:
-            payload = { "sn": device_code, "protocol": "3", "ledmode": 1, "section": [0, 0], "led": 1 }
+            payload = { 
+                "sn": device_code, 
+                "protocol": "3", 
+                "ledmode": 1, 
+                "section": [0, 0], 
+                "led": 1 
+            }
         
         resp = self._req(self.API_DEVICE_LED_PATH, payload)
+
         if (resp.status_code == 200):
             json_resp = resp.json()
 
             device_details = json_resp['data']
             return device_details
         else:
-            raise ConnectionAbortedError('turn_led_off() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to switch on Petoneer Fountain LEDs - Server Error')
 
     def turn_led_off(self, device_code):
-        payload = { "sn": device_code, "ledmode": 0, "section": [0,1439], "protocol": "3", "led": "0" }
+        if (device_code == ""):
+            raise PetoneerInvalidArgument('turn_led_off', 'device_code', 'The device serial number must be provided') 
+
+        payload = {         
+            "sn": device_code, 
+            "ledmode": 0, 
+            "section": [0,1439], 
+            "protocol": "3", 
+            "led": 0 
+        }
+
         resp = self._req(self.API_DEVICE_LED_PATH, payload)
+
         if (resp.status_code == 200):
             json_resp = resp.json()
 
             device_details = json_resp['data']
             return device_details
         else:
-            raise ConnectionAbortedError('turn_led_off() failed - server status code: {}\n{}'.format(resp.status_code, resp.raw))
+            raise PetoneerServerError(resp.status_code, resp.url, resp.text, 'Unable to switch off Petoneer Fountain LEDs - Server Error')
