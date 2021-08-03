@@ -14,8 +14,6 @@ import hashlib
 
 from petoneerErrors import *
 
-from pprint import pprint
-
 class Petoneer:
     """
     Class to interface with the cloud-based API for the Revogi Smart Home equipment
@@ -27,6 +25,7 @@ class Petoneer:
     API_DEVICE_LIST_PATH            = "/user/500"
     API_DEVICE_DETAILS_PATH         = "/pww/31101"
     API_DEVICE_SWITCH_PATH          = "/pww/21101"
+    API_DEVICE_TIMER_PATH           = "/pww/21102"
     API_DEVICE_LED_PATH             = "/pww/21104"
     API_RESET_CLEAN_PUMP_TIMER      = "/pww/21103"
     API_RESET_FILTER_CHANGE_TIMER    = "/pww/21105"
