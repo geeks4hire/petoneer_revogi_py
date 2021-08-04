@@ -40,18 +40,11 @@ class PetoneerHelpers:
 
     @staticmethod
     def TimeObjectToUnixTimestamp(time_obj:time):
-        #date_and_time = datetime.fromisoformat(time_obj.isoformat())
-        #return time.mktime(date_and_time.timetuple())
 
-        #device_current_datetime = datetime(device_current_time.strftime('%H:%M:%S'))
-        #datetime.fromordinal()
-        #device_current_datetime = datetime(device_current_time)
-        #print(f"Device Unix Timestamp: {device_current_time.strftime('%H:%M:%S')}")
-        #unix_timestamp2 = time.mktime(device_current_datetime.timetuple())
-        #print(f"Device Unix Timestamp: {unix_timestamp2}")
+        time_today = datetime.combine(datetime.now(), test_time) 
+        unixtimestamp = int(time_today.timestamp())
 
-        #TO-DO: Fix this method to work with Time object (easy to do from datetime)
-        return time_obj
+        return unixtimestamp
     
     @staticmethod
     def isCurrentTimeWithinScheduleWindow(schedule_start_time:time, schedule_end_time:time, current_time:time = datetime.now().time):
